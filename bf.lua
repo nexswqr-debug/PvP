@@ -1186,11 +1186,6 @@ end)
 
 
 
--- =====================================================
--- ✅ OPTIMIZED ESP SYSTEM (50-70% LAG REDUCTION)
--- =====================================================
--- แทนที่ตั้งแต่ getgenv().ESPConfig ถึง Players.PlayerAdded:Connect(CreateESP)
-
 getgenv().ESPConfig = getgenv().ESPConfig or {
     ShowName = true,
     ShowDistance = true,
@@ -1203,7 +1198,6 @@ getgenv().ESPConfig = getgenv().ESPConfig or {
     Pirates = true,
     Marines = true,
 }
-
 getgenv().COLORS = {
     -- Team
     Pirates = Color3.fromRGB(255, 35, 75),
@@ -1232,15 +1226,6 @@ getgenv().COLORS = {
     Glow = Color3.fromRGB(255, 255, 255),
 }
 
--- ✅ CACHE LAYER (Reduce FindFirstChild calls)
-local ESPCache = {
-    safeZones = {},
-    safeZoneUpdateTime = 0,
-    colorCache = {},
-    levelCache = {}, -- เก็บ Level เพื่อไม่ต้องค้นหาซ้ำ
-    bountyCache = {}, -- เก็บ Bounty เพื่อไม่ต้องค้นหาซ้ำ
-}
-
 local isInSafeZoneRadius
 local GetTeamInfo
 local GetLevel
@@ -1252,14 +1237,15 @@ do
     local Players = game:GetService("Players")
     local Workspace = game:GetService("Workspace")
 
-    local safeZoneList = {}
+    local safeZoneCache = nil
+    local safeZoneList = nil
     local lastSafeZoneCacheTime = 0
 
-    -- ✅ Optimized: Cache safe zones ทุก 10 วินาที แทนทุก 5 วินาที
     local function rebuildSafeZoneCache()
         local origin = Workspace:FindFirstChild("_WorldOrigin")
         local folder = origin and origin:FindFirstChild("SafeZones")
 
+        safeZoneCache = folder
         safeZoneList = {}
 
         if folder then
@@ -1271,7 +1257,10 @@ do
                     if mesh then
                         radius = mesh.Scale.X * 0.5
                     else
-                        radius = math.max(zonePart.Size.X, zonePart.Size.Z) * 0.5
+                        radius = math.max(
+                            zonePart.Size.X,
+                            zonePart.Size.Z
+                        ) * 0.5
                     end
 
                     safeZoneList[#safeZoneList + 1] = {
@@ -1288,23 +1277,31 @@ do
     local function getSafeZoneList()
         local now = tick()
 
-        -- ✅ Increase cache time from 5s to 10s (reduce calls by 50%)
-        if not safeZoneList or #safeZoneList == 0 or now - lastSafeZoneCacheTime >= 10 then
+        if not safeZoneList
+            or now - lastSafeZoneCacheTime >= 5 then
+
             rebuildSafeZoneCache()
         end
 
         return safeZoneList
     end
 
-    -- ✅ Optimized: Use squared distance comparison (avoid sqrt)
     isInSafeZoneRadius = function(character)
-        if not character then return false end
+        if not character then
+            return false
+        end
 
         local root = character:FindFirstChild("HumanoidRootPart")
-        if not root then return false end
+
+        if not root then
+            return false
+        end
 
         local zones = getSafeZoneList()
-        if not zones or #zones == 0 then return false end
+
+        if not zones then
+            return false
+        end
 
         local charPos = root.Position
 
@@ -1312,8 +1309,10 @@ do
             local zone = zones[i]
             local delta = charPos - zone.Position
 
-            -- ✅ Use squared distance (avoid Magnitude which calls sqrt)
-            local distanceSquared = delta.X * delta.X + delta.Y * delta.Y + delta.Z * delta.Z
+            local distanceSquared =
+                delta.X * delta.X
+                + delta.Y * delta.Y
+                + delta.Z * delta.Z
 
             if distanceSquared <= zone.Radius * zone.Radius then
                 return true
@@ -1327,103 +1326,135 @@ do
         local team = player.Team
 
         if ESPConfig.ShowAllTeams then
-            return team and team.Name or "Player", COLORS.White, true
+            return
+                team and team.Name or "Player",
+                COLORS.White,
+                true
         end
 
         local teamName = team and team.Name or "Neutral"
 
         if teamName == "Pirates" then
             return "Pirates", COLORS.Pirates, ESPConfig.Pirates
-        elseif teamName == "Marines" then
+        end
+
+        if teamName == "Marines" then
             return "Marines", COLORS.Marines, ESPConfig.Marines
         end
 
         return teamName, COLORS.Neutral, true
     end
 
-    -- ✅ Optimized: Cache level lookups
     GetLevel = function(player)
-        -- ✅ Check cache first
-        if ESPCache.levelCache[player] then
-            return ESPCache.levelCache[player]
-        end
-
         local data = player:FindFirstChild("Data")
+
         if data then
             local level = data:FindFirstChild("Level")
+
             if level then
-                ESPCache.levelCache[player] = level.Value
                 return level.Value
             end
         end
 
         local leaderstats = player:FindFirstChild("leaderstats")
+
         if leaderstats then
             local level = leaderstats:FindFirstChild("Level")
+
             if level then
-                ESPCache.levelCache[player] = level.Value
                 return level.Value
             end
         end
 
-        ESPCache.levelCache[player] = "?"
         return "?"
     end
 
-    -- ✅ Optimized: Cache bounty lookups
     GetBounty = function(player)
-        -- ✅ Check cache first
-        if ESPCache.bountyCache[player] then
-            return ESPCache.bountyCache[player]
-        end
-
         local leaderstats = player:FindFirstChild("leaderstats")
+
         if leaderstats then
             local bounty = leaderstats:FindFirstChild("Bounty/Honor")
+
             if bounty then
-                ESPCache.bountyCache[player] = bounty.Value
                 return bounty.Value
             end
         end
 
-        ESPCache.bountyCache[player] = 0
         return 0
     end
 
     GetDetailedStatus = function(player)
         -- PvP
-        local pvpDisabled = player:GetAttribute("PvpDisabled")
-        local pvpText = pvpDisabled == true and "OFF" or "ON"
-        local pvpColor = pvpDisabled == true and COLORS.PvPOff or COLORS.PvPOn
+        local pvpDisabled =
+            player:GetAttribute("PvpDisabled")
+
+        local pvpText =
+            pvpDisabled == true and "OFF" or "ON"
+
+        local pvpColor =
+            pvpDisabled == true
+            and COLORS.PvPOff
+            or COLORS.PvPOn
 
         -- Safe Zone
-        local inSafeZoneAttr = player:GetAttribute("SafeZone")
-        local charData = player.Character
-        if not inSafeZoneAttr and charData then
-            inSafeZoneAttr = charData:GetAttribute("SafeZone")
-        end
+        local inSafeZoneAttr =
+            player:GetAttribute("SafeZone")
+            or (
+                player.Character
+                and player.Character:GetAttribute("SafeZone")
+            )
 
-        local inRadius = charData and isInSafeZoneRadius(charData)
-        local hasTempSafeZone = charData and charData:FindFirstChild("TempSafeZone")
+        local inRadius =
+            player.Character
+            and isInSafeZoneRadius(player.Character)
 
-        local inSafeZone = inSafeZoneAttr == true or inRadius or hasTempSafeZone
-        local safeText = inSafeZone and "SAFE" or "NORMAL"
-        local safeColor = inSafeZone and COLORS.SafeZoneOn or COLORS.SafeZoneOff
+        local hasTempSafeZone =
+            player.Character
+            and player.Character:FindFirstChild("TempSafeZone")
+
+        local inSafeZone =
+            inSafeZoneAttr == true
+            or inRadius
+            or hasTempSafeZone
+
+        local safeText =
+            inSafeZone and "SAFE" or "NORMAL"
+
+        local safeColor =
+            inSafeZone
+            and COLORS.SafeZoneOn
+            or COLORS.SafeZoneOff
 
         -- Combat
-        local inCombatVal = player:GetAttribute("InCombat")
-        if not inCombatVal and charData then
-            inCombatVal = charData:GetAttribute("InCombat")
+        local inCombatVal =
+            player:GetAttribute("InCombat")
+
+        if player.Character then
+            inCombatVal =
+                inCombatVal
+                or player.Character:GetAttribute("InCombat")
         end
 
-        local isCombat = inCombatVal == true or inCombatVal == 1 or inCombatVal == "1"
-        local combatText = isCombat and "COMBAT" or "READY"
-        local combatColor = isCombat and COLORS.Combat or COLORS.White
+        local isCombat =
+            inCombatVal == true
+            or inCombatVal == 1
+            or inCombatVal == "1"
 
-        return pvpText, pvpColor, safeText, safeColor, combatText, combatColor
+        local combatText =
+            isCombat and "COMBAT" or "READY"
+
+        local combatColor =
+            isCombat and COLORS.Combat or COLORS.White
+
+        return
+            pvpText,
+            pvpColor,
+            safeText,
+            safeColor,
+            combatText,
+            combatColor
     end
 
-    -- ✅ FormatNumber (no changes needed - already optimized)
     FormatNumber = function(number)
         if type(number) ~= "number" then
             return tostring(number)
@@ -1431,9 +1462,13 @@ do
 
         if number >= 1000000000 then
             return string.format("%.1fB", number / 1000000000)
-        elseif number >= 1000000 then
+        end
+
+        if number >= 1000000 then
             return string.format("%.1fM", number / 1000000)
-        elseif number >= 1000 then
+        end
+
+        if number >= 1000 then
             return string.format("%.1fK", number / 1000)
         end
 
@@ -1449,50 +1484,94 @@ do
     local ActiveESPs = {}
 
     local espUpdateTimer = 0
-    local espUpdateInterval = 0.55 -- ✅ Keep at 0.55s (already optimal)
+    local espUpdateInterval = 0.55
 
-    local function CreateGuiElement(className, parent, name, size, position)
+    local function CreateGuiElement(
+        className,
+        parent,
+        name,
+        size,
+        position
+    )
         local element = Instance.new(className)
+
         element.Name = name
         element.Size = size
+
         if position then
             element.Position = position
         end
+
         element.Parent = parent
+
         return element
     end
 
-    -- ✅ Optimized: Pre-cache neon text settings
+    --// =====================================================
+    --// NEON TEXT
+    --// =====================================================
+
     local function ApplyNeonText(label)
         label.BackgroundTransparency = 1
         label.TextStrokeTransparency = 0
         label.TextStrokeColor3 = COLORS.Outline
         label.RichText = true
         label.TextScaled = false
-        label.TextXAlignment = Enum.TextXAlignment.Center
-        label.TextYAlignment = Enum.TextYAlignment.Center
+
+        label.TextXAlignment =
+            Enum.TextXAlignment.Center
+
+        label.TextYAlignment =
+            Enum.TextYAlignment.Center
     end
+
+    --// =====================================================
+    --// BUILD UI
+    --// =====================================================
 
     local function BuildUIComponents(container)
         -- NAME
-        local nameLabel = CreateGuiElement("TextLabel", container, "NameLabel", UDim2.new(1, 0, 0, 18))
+        local nameLabel = CreateGuiElement(
+            "TextLabel",
+            container,
+            "NameLabel",
+            UDim2.new(1, 0, 0, 18)
+        )
+
         ApplyNeonText(nameLabel)
+
         nameLabel.Visible = ESPConfig.ShowName
         nameLabel.TextSize = 12
         nameLabel.Font = Enum.Font.GothamBold
         nameLabel.TextStrokeTransparency = 0.05
 
         -- STATUS
-        local pvpLabel = CreateGuiElement("TextLabel", container, "PvPLabel", UDim2.new(1, 0, 0, 14), UDim2.new(0, 0, 0, 19))
+        local pvpLabel = CreateGuiElement(
+            "TextLabel",
+            container,
+            "PvPLabel",
+            UDim2.new(1, 0, 0, 14),
+            UDim2.new(0, 0, 0, 19)
+        )
+
         ApplyNeonText(pvpLabel)
+
         pvpLabel.Visible = ESPConfig.ShowStatus
         pvpLabel.TextSize = 9
         pvpLabel.Font = Enum.Font.GothamBold
         pvpLabel.TextStrokeTransparency = 0.05
 
         -- LEVEL
-        local levelLabel = CreateGuiElement("TextLabel", container, "LevelLabel", UDim2.new(1, 0, 0, 14), UDim2.new(0, 0, 0, 34))
+        local levelLabel = CreateGuiElement(
+            "TextLabel",
+            container,
+            "LevelLabel",
+            UDim2.new(1, 0, 0, 14),
+            UDim2.new(0, 0, 0, 34)
+        )
+
         ApplyNeonText(levelLabel)
+
         levelLabel.Visible = ESPConfig.ShowLevel
         levelLabel.TextSize = 9
         levelLabel.Font = Enum.Font.GothamBold
@@ -1500,8 +1579,16 @@ do
         levelLabel.TextStrokeTransparency = 0.05
 
         -- BOUNTY
-        local bountyLabel = CreateGuiElement("TextLabel", container, "BountyLabel", UDim2.new(1, 0, 0, 14), UDim2.new(0, 0, 0, 49))
+        local bountyLabel = CreateGuiElement(
+            "TextLabel",
+            container,
+            "BountyLabel",
+            UDim2.new(1, 0, 0, 14),
+            UDim2.new(0, 0, 0, 49)
+        )
+
         ApplyNeonText(bountyLabel)
+
         bountyLabel.Visible = ESPConfig.ShowBounty
         bountyLabel.TextSize = 9
         bountyLabel.Font = Enum.Font.GothamBold
@@ -1509,7 +1596,14 @@ do
         bountyLabel.TextStrokeTransparency = 0.05
 
         -- HEALTH BACKGROUND
-        local hpBG = CreateGuiElement("Frame", container, "HPBG", UDim2.new(0.58, 0, 0, 3), UDim2.new(0.21, 0, 0, 66))
+        local hpBG = CreateGuiElement(
+            "Frame",
+            container,
+            "HPBG",
+            UDim2.new(0.58, 0, 0, 3),
+            UDim2.new(0.21, 0, 0, 66)
+        )
+
         hpBG.Visible = ESPConfig.ShowHealth
         hpBG.BackgroundColor3 = COLORS.HPBG
         hpBG.BackgroundTransparency = 0.15
@@ -1526,7 +1620,13 @@ do
         hpStroke.Parent = hpBG
 
         -- HEALTH BAR
-        local hp = CreateGuiElement("Frame", hpBG, "HP", UDim2.new(1, 0, 1, 0))
+        local hp = CreateGuiElement(
+            "Frame",
+            hpBG,
+            "HP",
+            UDim2.new(1, 0, 1, 0)
+        )
+
         hp.BackgroundColor3 = COLORS.HP
         hp.BorderSizePixel = 0
 
@@ -1540,7 +1640,12 @@ do
         hpGlow.Transparency = 0.25
         hpGlow.Parent = hp
 
-        return nameLabel, pvpLabel, levelLabel, bountyLabel, hpBG
+        return
+            nameLabel,
+            pvpLabel,
+            levelLabel,
+            bountyLabel,
+            hpBG
     end
     
     local function CreateESP(player)
@@ -1550,18 +1655,22 @@ do
 
         local connectionHealth
 
+        --// CLEANUP
         local function CleanupGui()
             if connectionHealth then
                 connectionHealth:Disconnect()
                 connectionHealth = nil
             end
 
-            if ActiveESPs[player] and ActiveESPs[player].Gui then
+            if ActiveESPs[player]
+                and ActiveESPs[player].Gui then
+
                 ActiveESPs[player].Gui:Destroy()
                 ActiveESPs[player].Gui = nil
             end
         end
 
+        --// CHARACTER SETUP
         local function Setup(character)
             if not character then
                 return
@@ -1569,27 +1678,41 @@ do
 
             CleanupGui()
 
-            local head = character:WaitForChild("Head", 10)
-            local humanoid = character:WaitForChild("Humanoid", 10)
+            local head =
+                character:WaitForChild("Head", 10)
+
+            local humanoid =
+                character:WaitForChild("Humanoid", 10)
 
             if not head or not humanoid then
                 return
             end
 
-            local old = head:FindFirstChild("PlayerESP")
+            local old =
+                head:FindFirstChild("PlayerESP")
+
             if old then
                 old:Destroy()
             end
 
             -- TEAM
-            local teamName, teamColor, teamEnabled = GetTeamInfo(player)
+            local teamName,
+                teamColor,
+                teamEnabled =
+                GetTeamInfo(player)
 
             -- BILLBOARD
             local gui = Instance.new("BillboardGui")
+
             gui.Name = "PlayerESP"
             gui.Adornee = head
-            gui.Size = UDim2.fromOffset(210, 86)
-            gui.StudsOffset = Vector3.new(0, 3, 0)
+
+            gui.Size =
+                UDim2.fromOffset(210, 86)
+
+            gui.StudsOffset =
+                Vector3.new(0, 3, 0)
+
             gui.AlwaysOnTop = true
             gui.LightInfluence = 0
             gui.MaxDistance = 1000000
@@ -1597,59 +1720,106 @@ do
             gui.Parent = head
 
             -- CONTAINER
-            local container = CreateGuiElement("Frame", gui, "Container", UDim2.new(1, 0, 1, 0))
+            local container = CreateGuiElement(
+                "Frame",
+                gui,
+                "Container",
+                UDim2.new(1, 0, 1, 0)
+            )
+
             container.BackgroundTransparency = 1
 
             -- UI
-            local nameLabel, pvpLabel, levelLabel, bountyLabel, hpBG = BuildUIComponents(container)
+            local nameLabel,
+                pvpLabel,
+                levelLabel,
+                bountyLabel,
+                hpBG =
+                BuildUIComponents(container)
+
             local hp = hpBG:FindFirstChild("HP")
 
-            -- ✅ Optimized: Update health (fewer calculations)
+            --// =================================================
+            --// HEALTH
+            --// =================================================
+
             local function UpdateHealth(value)
                 local maxHealth = humanoid.MaxHealth
-                if maxHealth <= 0 then maxHealth = 1 end
 
-                local percent = math.clamp(value / maxHealth, 0, 1)
-                hp.Size = UDim2.new(percent, 0, 1, 0)
+                if maxHealth <= 0 then
+                    maxHealth = 1
+                end
+
+                local percent =
+                    math.clamp(
+                        value / maxHealth,
+                        0,
+                        1
+                    )
+
+                hp.Size =
+                    UDim2.new(
+                        percent,
+                        0,
+                        1,
+                        0
+                    )
 
                 local healthColor
+
                 if percent > 0.65 then
-                    healthColor = Color3.fromRGB(0, 255, 120)
+                    healthColor =
+                        Color3.fromRGB(0, 255, 120)
                 elseif percent > 0.30 then
-                    healthColor = Color3.fromRGB(255, 220, 0)
+                    healthColor =
+                        Color3.fromRGB(255, 220, 0)
                 else
-                    healthColor = Color3.fromRGB(255, 35, 65)
+                    healthColor =
+                        Color3.fromRGB(255, 35, 65)
                 end
 
                 hp.BackgroundColor3 = healthColor
 
-                local glow = hp:FindFirstChildOfClass("UIStroke")
+                local glow =
+                    hp:FindFirstChildOfClass("UIStroke")
+
                 if glow then
                     glow.Color = healthColor
                 end
 
-                local bgStroke = hpBG:FindFirstChildOfClass("UIStroke")
+                local bgStroke =
+                    hpBG:FindFirstChildOfClass("UIStroke")
+
                 if bgStroke then
                     bgStroke.Color = healthColor
                 end
             end
 
-            -- ✅ Optimized: Dynamic info update (batched, not every frame)
+            --// =================================================
+            --// DYNAMIC INFO
+            --// =================================================
+
             local lastDynamicUpdate = 0
+
             local function UpdateDynamicInfo()
                 local now = tick()
 
-                -- ✅ Throttle updates to 0.3s
                 if now - lastDynamicUpdate < 0.3 then
                     return
                 end
+
                 lastDynamicUpdate = now
 
                 -- TEAM
-                local newTeamName, newTeamColor, newTeamEnabled = GetTeamInfo(player)
+                local newTeamName,
+                    newTeamColor,
+                    newTeamEnabled =
+                    GetTeamInfo(player)
+
                 teamName = newTeamName
                 teamColor = newTeamColor
                 teamEnabled = newTeamEnabled
+
                 gui.Enabled = teamEnabled
 
                 -- VISIBILITY
@@ -1661,38 +1831,89 @@ do
 
                 -- DISTANCE
                 local distStr = ""
-                if ESPConfig.ShowDistance and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
-                    local myHead = LocalPlayer.Character.Head
-                    local distance = math.floor((myHead.Position - head.Position).Magnitude)
-                    distStr = string.format(" <font color=\"rgb(170,170,190)\">[%dm]</font>", distance)
+
+                if ESPConfig.ShowDistance
+                    and LocalPlayer.Character
+                    and LocalPlayer.Character:FindFirstChild("Head") then
+
+                    local myHead =
+                        LocalPlayer.Character.Head
+
+                    local distance =
+                        math.floor(
+                            (
+                                myHead.Position
+                                - head.Position
+                            ).Magnitude
+                        )
+
+                    distStr =
+                        string.format(
+                            " <font color=\"rgb(170,170,190)\">[%dm]</font>",
+                            distance
+                        )
                 end
 
-                -- TEAM COLOR (cached)
-                local tr = math.floor(teamColor.R * 255)
-                local tg = math.floor(teamColor.G * 255)
-                local tb = math.floor(teamColor.B * 255)
+                -- TEAM COLOR
+                local tr =
+                    math.floor(teamColor.R * 255)
+
+                local tg =
+                    math.floor(teamColor.G * 255)
+
+                local tb =
+                    math.floor(teamColor.B * 255)
 
                 -- NAME
-                nameLabel.Text = string.format(
-                    "<font color=\"rgb(%d,%d,%d)\">[%s]</font> <font color=\"rgb(255,255,255)\">%s</font>%s",
-                    tr, tg, tb, teamName, player.DisplayName, distStr
-                )
+                nameLabel.Text =
+                    string.format(
+                        "<font color=\"rgb(%d,%d,%d)\">[%s]</font> <font color=\"rgb(255,255,255)\">%s</font>%s",
+                        tr,
+                        tg,
+                        tb,
+                        teamName,
+                        player.DisplayName,
+                        distStr
+                    )
 
                 -- STATUS
-                local pvpText, pvpColor, safeText, safeColor, combatText, combatColor = GetDetailedStatus(player)
+                local pvpText,
+                    pvpColor,
+                    safeText,
+                    safeColor,
+                    combatText,
+                    combatColor =
+                    GetDetailedStatus(player)
 
-                pvpLabel.Text = string.format(
-                    "⚡ <font color=\"rgb(255,255,255)\">PvP</font>:<font color=\"rgb(%d,%d,%d)\">%s</font> | <font color=\"rgb(%d,%d,%d)\">%s</font> | <font color=\"rgb(%d,%d,%d)\">%s</font>",
-                    math.floor(pvpColor.R * 255), math.floor(pvpColor.G * 255), math.floor(pvpColor.B * 255), pvpText,
-                    math.floor(safeColor.R * 255), math.floor(safeColor.G * 255), math.floor(safeColor.B * 255), safeText,
-                    math.floor(combatColor.R * 255), math.floor(combatColor.G * 255), math.floor(combatColor.B * 255), combatText
-                )
+                pvpLabel.Text =
+                    string.format(
+                        "⚡ <font color=\"rgb(255,255,255)\">PvP</font>:<font color=\"rgb(%d,%d,%d)\">%s</font> | <font color=\"rgb(%d,%d,%d)\">%s</font> | <font color=\"rgb(%d,%d,%d)\">%s</font>",
+
+                        math.floor(pvpColor.R * 255),
+                        math.floor(pvpColor.G * 255),
+                        math.floor(pvpColor.B * 255),
+                        pvpText,
+
+                        math.floor(safeColor.R * 255),
+                        math.floor(safeColor.G * 255),
+                        math.floor(safeColor.B * 255),
+                        safeText,
+
+                        math.floor(combatColor.R * 255),
+                        math.floor(combatColor.G * 255),
+                        math.floor(combatColor.B * 255),
+                        combatText
+                    )
 
                 -- LEVEL
-                levelLabel.Text = "⚡ LVL: " .. tostring(GetLevel(player))
+                levelLabel.Text =
+                    "⚡ LVL: "
+                    .. tostring(GetLevel(player))
 
                 -- BOUNTY
-                bountyLabel.Text = "💎 BOUNTY: " .. FormatNumber(GetBounty(player))
+                bountyLabel.Text =
+                    "💎 BOUNTY: "
+                    .. FormatNumber(GetBounty(player))
             end
 
             -- INITIAL UPDATE
@@ -1708,73 +1929,95 @@ do
             }
 
             -- HEALTH EVENT
-            connectionHealth = humanoid.HealthChanged:Connect(UpdateHealth)
+            connectionHealth =
+                humanoid.HealthChanged:Connect(
+                    UpdateHealth
+                )
         end
 
-        -- EXISTING CHARACTER
+        --// EXISTING CHARACTER
         if player.Character then
             task.spawn(function()
                 Setup(player.Character)
             end)
         end
 
-        -- CHARACTER ADDED
+        --// CHARACTER ADDED
         player.CharacterAdded:Connect(function(newChar)
             task.spawn(function()
                 Setup(newChar)
             end)
         end)
 
-        -- ✅ Optimized: Bounty update with cache invalidation
-        local leaderstats = player:FindFirstChild("leaderstats") or player:WaitForChild("leaderstats", 5)
+        --// =================================================
+        --// BOUNTY EVENT
+        --// =================================================
+
+        local leaderstats =
+            player:FindFirstChild("leaderstats")
+            or player:WaitForChild("leaderstats", 5)
+
         if leaderstats then
-            local bVal = leaderstats:FindFirstChild("Bounty/Honor")
+            local bVal =
+                leaderstats:FindFirstChild("Bounty/Honor")
+
             if bVal then
                 bVal.Changed:Connect(function(newValue)
-                    -- ✅ Invalidate cache
-                    ESPCache.bountyCache[player] = newValue
-                    
-                    if ActiveESPs[player] and ActiveESPs[player].Gui then
-                        local bountyLbl = ActiveESPs[player].Gui:FindFirstChild("BountyLabel", true)
+                    if ActiveESPs[player]
+                        and ActiveESPs[player].Gui then
+
+                        local bountyLbl =
+                            ActiveESPs[player].Gui:FindFirstChild(
+                                "BountyLabel",
+                                true
+                            )
+
                         if bountyLbl then
-                            bountyLbl.Text = "💎 BOUNTY: " .. FormatNumber(newValue)
+                            bountyLbl.Text =
+                                "💎 BOUNTY: "
+                                .. FormatNumber(newValue)
                         end
                     end
                 end)
             end
         end
 
-        -- TEAM EVENT
+        --// =================================================
+        --// TEAM EVENT
+        --// =================================================
+
         player:GetPropertyChangedSignal("Team"):Connect(function()
-            -- ✅ Invalidate level cache on team change
-            ESPCache.levelCache[player] = nil
-            
-            if ActiveESPs[player] and ActiveESPs[player].Gui then
-                local _, _, teamEnabled = GetTeamInfo(player)
-                ActiveESPs[player].Gui.Enabled = teamEnabled
+            if ActiveESPs[player]
+                and ActiveESPs[player].Gui then
+
+                local _, _, teamEnabled =
+                    GetTeamInfo(player)
+
+                ActiveESPs[player].Gui.Enabled =
+                    teamEnabled
+
                 ActiveESPs[player].Update()
             end
         end)
 
-        -- PLAYER DESTROY
+        --// =================================================
+        --// PLAYER DESTROY
+        --// =================================================
+
         player.Destroying:Connect(function()
-            -- ✅ Clean up caches
-            ESPCache.levelCache[player] = nil
-            ESPCache.bountyCache[player] = nil
-            
             if ActiveESPs[player] then
                 if ActiveESPs[player].Gui then
                     ActiveESPs[player].Gui:Destroy()
                 end
+
                 ActiveESPs[player] = nil
             end
         end)
     end
 
-    -- ✅ CONSOLIDATED: Single Heartbeat for ESP updates
-    _G_MainConnections = _G_MainConnections or {}
-    _G_MainConnections.ESPUpdate = RunService.Heartbeat:Connect(function(dt)
-        espUpdateTimer = espUpdateTimer + dt
+    RunService.Heartbeat:Connect(function(dt)
+        espUpdateTimer =
+            espUpdateTimer + dt
 
         if espUpdateTimer < espUpdateInterval then
             return
@@ -1783,23 +2026,25 @@ do
         espUpdateTimer = 0
 
         for _, data in pairs(ActiveESPs) do
-            if data and data.Update and data.Head and data.Head.Parent then
+            if data
+                and data.Update
+                and data.Head
+                and data.Head.Parent then
+
                 data.Update()
             end
         end
     end)
 
-    -- Initialize ESP for existing players
     for _, player in ipairs(Players:GetPlayers()) do
         CreateESP(player)
     end
 
-    -- New player ESP
     Players.PlayerAdded:Connect(CreateESP)
 end
 
 
---วาปหาผู้เล่น (Improved Version)
+
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -1812,56 +2057,12 @@ local TpBehindDistance = 5
 local FollowKeybind = Enum.KeyCode.E
 
 local currentTarget = nil
-local FollowToggle 
+local FollowToggle
+local lastTargetUpdate = 0
+local updateDelay = 0.5 -- อัปเดตเป้าหมายทุก 0.5 วินาที
 
--- เปลี่ยนชื่อฟังก์ชันเป็น CheckIgnoreCondition
-local function CheckIgnoreCondition(targetChar)
-    if not targetChar or not targetChar.Parent then return true end
-    
-    local targetPlayer = Players:GetPlayerFromCharacter(targetChar)
-    if not targetPlayer then return true end
-    if targetPlayer == LocalPlayer then return true end
-    
-    local humanoid = targetChar:FindFirstChildOfClass("Humanoid")
-    if not humanoid or humanoid.Health <= 0 then return true end
-    
-    if targetChar:FindFirstChildOfClass("ForceField") then
-        return true
-    end
 
-    if LocalPlayer.Team and targetPlayer.Team then
-        if LocalPlayer.Team.Name == "Marines" and targetPlayer.Team.Name == "Marines" then 
-            return true 
-        end
-    end
-
-    local inCombat = false
-    local inSafeZone = false
-    
-    pcall(function()
-        if isPlayerInCombat then 
-            inCombat = isPlayerInCombat(targetPlayer, targetChar) 
-        end
-        if isPlayerInSafeZone then 
-            inSafeZone = isPlayerInSafeZone(targetPlayer, targetChar) 
-        end
-        
-        if targetChar:GetAttribute("SafeZone") or targetPlayer:GetAttribute("InSafeZone") then
-            inSafeZone = true
-        end
-        
-        if targetChar:GetAttribute("InCombat") or targetPlayer:GetAttribute("InCombat") then
-            inCombat = true
-        end
-    end)
-    
-    if inSafeZone then
-        return true
-    end
-    
-    return false
-end
-
+-- หาเป้าหมายที่ใกล้ที่สุด
 local function GetClosestPlayerTarget()
     local character = LocalPlayer.Character
     local rootPart = character and character:FindFirstChild("HumanoidRootPart")
@@ -1871,17 +2072,27 @@ local function GetClosestPlayerTarget()
     local shortestDistance = FollowDistance
 
     for _, otherPlayer in ipairs(Players:GetPlayers()) do
-        local targetChar = otherPlayer.Character
-        -- อัปเดตเรียกใช้ชื่อฟังก์ชันใหม่
-        if targetChar and not CheckIgnoreCondition(targetChar) then
-            local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-            local targetHumanoid = targetChar:FindFirstChildOfClass("Humanoid")
+        if otherPlayer ~= LocalPlayer then
+            local targetChar = otherPlayer.Character
             
-            if targetRoot and targetHumanoid and targetHumanoid.Health > 0 then
-                local distance = (rootPart.Position - targetRoot.Position).Magnitude
-                if distance < shortestDistance then
-                    shortestDistance = distance
-                    closestTarget = targetChar
+            -- รวมฟังก์ชันตรวจสอบทั้งหมดตรงนี้
+            local isValidTarget = targetChar 
+                and not ShouldIgnoreTarget(targetChar)
+                and not isPlayerInSafeZone(otherPlayer)
+                and not isInSafeZoneRadius(targetChar)
+                and not isPlayerInCombat(otherPlayer)
+                -- และสามารถเพิ่มเงื่อนไขจาก getPlayerStatus ได้ตามต้องการ เช่น:
+                -- and getPlayerStatus(otherPlayer) == "Normal"
+
+            if isValidTarget then
+                local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+                if targetRoot then
+                    local distance = (rootPart.Position - targetRoot.Position).Magnitude
+                    
+                    if distance < shortestDistance then
+                        shortestDistance = distance
+                        closestTarget = otherPlayer -- เก็บ Player ไม่ใช่ Character
+                    end
                 end
             end
         end
@@ -1890,6 +2101,8 @@ local function GetClosestPlayerTarget()
     return closestTarget
 end
 
+
+-- ปิดระบบติดตาม
 local function DisableFollowSystem(notificationText)
     if not FollowEnabled then return end
     FollowEnabled = false
@@ -1909,6 +2122,34 @@ local function DisableFollowSystem(notificationText)
     end
 end
 
+-- ติดตามเป้าหมาย
+local function FollowTarget(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then return false end
+    
+    local character = LocalPlayer.Character
+    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+    
+    if not rootPart then return false end
+    
+    local targetChar = targetPlayer.Character
+    if not targetChar then return false end
+    
+    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
+    if not targetRoot then return false end
+    
+    local myHumanoid = character:FindFirstChildOfClass("Humanoid")
+    local targetHumanoid = targetChar:FindFirstChildOfClass("Humanoid")
+    
+    if not myHumanoid or myHumanoid.Health <= 0 then return false end
+    if not targetHumanoid or targetHumanoid.Health <= 0 then return false end
+    
+    -- คำนวณตำแหน่งใหม่และเคลื่อนไป
+    local newCFrame = targetRoot.CFrame * CFrame.new(0, 0, TpBehindDistance)
+    rootPart.CFrame = newCFrame
+    
+    return true
+end
+-- Main Loop
 RunService.RenderStepped:Connect(function()
     if not FollowEnabled then
         currentTarget = nil
@@ -1917,34 +2158,60 @@ RunService.RenderStepped:Connect(function()
 
     local character = LocalPlayer.Character
     local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-    local myHumanoid = character and character:FindFirstChild("Humanoid")
+    local myHumanoid = character and character:FindFirstChildOfClass("Humanoid")
 
-    if not rootPart or not myHumanoid or myHumanoid.Health <= 0 then return end
-
-    -- อัปเดตเรียกใช้ชื่อฟังก์ชันใหม่
-    if not currentTarget or CheckIgnoreCondition(currentTarget) then
-        currentTarget = GetClosestPlayerTarget()
+    if not rootPart or not myHumanoid or myHumanoid.Health <= 0 then 
+        DisableFollowSystem("You died!")
+        return 
     end
 
-    if currentTarget then
-        local targetRoot = currentTarget:FindFirstChild("HumanoidRootPart")
-        local targetHumanoid = currentTarget:FindFirstChildOfClass("Humanoid")
+    -- อัปเดตเป้าหมายทุกๆ 0.5 วินาที
+    local currentTime = tick()
+    if currentTime - lastTargetUpdate >= updateDelay then
+        lastTargetUpdate = currentTime
+        
+        -- ฟังก์ชันช่วยตรวจสอบว่าเป้าหมายยังถูกต้องครบถ้วนไหม
+        local function IsTargetValid(player)
+            if not player or not player.Character then return false end
+            local targetChar = player.Character
+            
+            return not ShouldIgnoreTarget(targetChar)
+                and not isPlayerInSafeZone(player)
+                and not isInSafeZoneRadius(targetChar)
+                and not isPlayerInCombat(player)
+                -- และสถานะอื่นๆ ถ้ามี เช่น:
+                -- and getPlayerStatus(player) == "Normal"
+        end
 
-        if not targetHumanoid or targetHumanoid.Health <= 0 or not currentTarget.Parent then
+        -- ตรวจสอบเป้าหมายปัจจุบันว่ายังใช้ได้หรือไม่
+        if not currentTarget or not IsTargetValid(currentTarget) then
+            currentTarget = GetClosestPlayerTarget()
+        end
+    end
+
+    -- ติดตามเป้าหมาย
+    if currentTarget then
+        local success = FollowTarget(currentTarget)
+        if not success then
             DisableFollowSystem("Target eliminated! Switching...")
-            currentTarget = GetClosestPlayerTarget() 
-        elseif targetRoot then
-            rootPart.CFrame = targetRoot.CFrame * CFrame.new(0, 0, TpBehindDistance)
+            currentTarget = GetClosestPlayerTarget()
         end
     end
 end)
 
+-- ควบคุมด้วยปุ่ม
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     
     if input.UserInputType == Enum.UserInputType.Keyboard then
         if input.KeyCode == FollowKeybind then
             FollowEnabled = not FollowEnabled 
+            
+            if FollowEnabled then
+                currentTarget = GetClosestPlayerTarget()
+            else
+                currentTarget = nil
+            end
 
             if WindUI and WindUI.Notify then
                 WindUI:Notify({
@@ -1957,10 +2224,6 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
             
             if FollowToggle and FollowToggle.Set then
                 FollowToggle:Set(FollowEnabled)
-            end
-            
-            if not FollowEnabled then 
-                currentTarget = nil 
             end
         end
     end
