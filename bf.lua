@@ -1600,7 +1600,7 @@ do
             "Frame",
             container,
             "HPBG",
-            UDim2.new(0.58, 0, 0, 3),
+            UDim2.new(0.68, 0, 0, 3),
             UDim2.new(0.21, 0, 0, 66)
         )
 
