@@ -59,19 +59,130 @@ pcall(function()
 end)
 
 WindUI:AddTheme({
-    Name = "Clean Monolith",
+    -- More soon!
+    Name = "Clean Monolith", -- theme name
     
-    Accent = Color3.fromHex("#a1a1aa"),      -- เปลี่ยนไฮไลท์เป็นสีเทาสว่าง (Zinc 400)
-    Background = Color3.fromHex("#09090b"), -- ดำสนิท (Zinc 950)
-    Outline = Color3.fromHex("#27272a"),    -- ขอบสีเทาเข้มตัดเส้นบางๆ (Zinc 800)
-    Text = Color3.fromHex("#f4f4f5"),       -- ตัวหนังสือสีขาวนวล อ่านง่าย
-    Placeholder = Color3.fromHex("#71717a"),-- เทากลางสำหรับข้อความจาง
-    Button = Color3.fromHex("#18181b"),     -- ปุ่มสีเทาดำเข้ม (Zinc 900)
-    Icon = Color3.fromHex("#a1a1aa"),       -- ไอคอนสีเทาสว่าง
+Primary = Color3.fromHex("#A1A1AA"), -- Gray
 
-    Toggle = Color3.fromHex("#a1a1aa"),     -- สวิตช์เปิดเป็นสีเทาสว่าง
-    ToggleBar = Color3.fromHex("#27272a"),  -- พื้นหลังสวิตช์สีเทาเข้ม
+White = Color3.fromRGB(255,255,255),
+Black = Color3.fromRGB(0,0,0),
+
+Dialog = Color3.fromHex("#18181B"), -- Dark Gray
+
+Background = Color3.fromHex("#101010"), -- Black
+BackgroundTransparency = 0,
+Hover = Color3.fromHex("#D4D4D8"), -- Light Gray
+
+PanelBackground = Color3.fromRGB(255,255,255),
+PanelBackgroundTransparency = .95,
+
+WindowBackground = Color3.fromHex("#101010"),
+
+WindowShadow = Color3.fromRGB(0,0,0),
+
+WindowTopbarTitle = Color3.fromHex("#F4F4F5"),
+WindowTopbarAuthor = Color3.fromHex("#A1A1AA"),
+WindowTopbarIcon = Color3.fromHex("#A1A1AA"),
+WindowTopbarButtonIcon = Color3.fromHex("#A1A1AA"),
+
+WindowSearchBarBackground = Color3.fromHex("#18181B"),
+
+TabBackground = Color3.fromHex("#FFFFFF"),
+TabBackgroundHover = Color3.fromHex("#FFFFFF"),
+TabBackgroundHoverTransparency = .96,
+TabBackgroundActive = Color3.fromHex("#FFFFFF"),
+TabBackgroundActiveTransparency = .91,
+
+TabText = Color3.fromHex("#E4E4E7"),
+TabTextTransparency = .3,
+TabTextTransparencyActive = 0,
+
+TabTitle = Color3.fromHex("#F4F4F5"),
+TabIcon = Color3.fromHex("#A1A1AA"),
+TabIconTransparency = .4,
+TabIconTransparencyActive = .1,
+
+TabBorderTransparency = 1,
+TabBorderTransparencyActive = .75,
+TabBorder = Color3.fromRGB(255,255,255),
+
+ElementBackground = Color3.fromHex("#FFFFFF"),
+ElementBackgroundTransparency = .94,
+ElementBackgroundHover = WindUI.Creator:AddColor("ElementBackground", "#ffffff", 1/12),
+
+ElementTitle = Color3.fromHex("#F4F4F5"),
+ElementDesc = Color3.fromHex("#A1A1AA"),
+ElementIcon = Color3.fromHex("#A1A1AA"),
+
+PopupBackground = Color3.fromHex("#101010"),
+PopupBackgroundTransparency = "BackgroundTransparency",
+PopupTitle = Color3.fromHex("#F4F4F5"),
+PopupContent = Color3.fromHex("#A1A1AA"),
+PopupIcon = Color3.fromHex("#A1A1AA"),
+
+DialogBackground = Color3.fromHex("#101010"),
+DialogBackgroundTransparency = "BackgroundTransparency",
+DialogTitle = Color3.fromHex("#F4F4F5"),
+DialogContent = Color3.fromHex("#A1A1AA"),
+DialogIcon = Color3.fromHex("#A1A1AA"),
+
+Toggle = Color3.fromHex("#52525B"),
+ToggleBar = Color3.fromRGB(255,255,255),
+
+Checkbox = Color3.fromHex("#A1A1AA"),
+CheckboxIcon = Color3.fromRGB(255,255,255),
+CheckboxBorder = Color3.fromRGB(255,255,255),
+CheckboxBorderTransparency = .75,
+
+SliderIcon = Color3.fromHex("#A1A1AA"),
+
+Slider = Color3.fromHex("#A1A1AA"),
+SliderThumb = Color3.fromRGB(255,255,255),
+SliderIconFrom = Color3.fromHex("#71717A"),
+SliderIconTo = Color3.fromHex("#D4D4D8"),
+
+Tooltip = Color3.fromHex("#27272A"),
+TooltipText = Color3.fromRGB(255,255,255),
+TooltipSecondary = Color3.fromHex("#A1A1AA"),
+TooltipSecondaryText = Color3.fromRGB(255,255,255),
+
+TabSectionIcon = Color3.fromHex("#A1A1AA"),
+
+SectionIcon = Color3.fromHex("#A1A1AA"),
+
+SectionExpandIcon = Color3.fromRGB(255,255,255),
+SectionExpandIconTransparency = .4,
+
+SectionBox = Color3.fromRGB(255,255,255),
+SectionBoxTransparency = .95,
+
+SectionBoxBorder = Color3.fromRGB(255,255,255),
+SectionBoxBorderTransparency = .75,
+
+SectionBoxBackground = Color3.fromRGB(255,255,255),
+SectionBoxBackgroundTransparency = .95,
+
+SearchBarBorder = Color3.fromRGB(255,255,255),
+SearchBarBorderTransparency = .75,
+
+Notification = Color3.fromHex("#101010"),
+NotificationTitle = Color3.fromHex("#F4F4F5"),
+NotificationTitleTransparency = 0,
+NotificationContent = Color3.fromHex("#A1A1AA"),
+NotificationContentTransparency = .4,
+
+NotificationDuration = Color3.fromRGB(255,255,255),
+NotificationDurationTransparency = .95,
+
+NotificationBorder = Color3.fromRGB(255,255,255),
+NotificationBorderTransparency = .75,
+
+DropdownTabBorder = Color3.fromRGB(255,255,255),
+
+LabelBackground = Color3.fromRGB(255,255,255),
+LabelBackgroundTransparency = .95,
 })
+
 
 local windowSuccess, Window = pcall(function()
     return WindUI:CreateWindow({
@@ -130,11 +241,33 @@ task.spawn(function()
         })
     end)
 
-    local player = game:GetService("Players").LocalPlayer
-    while not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") do
-        task.wait(0.5)
-    end
+local player = game:GetService("Players").LocalPlayer
+
+-- ✅ รอตัวละครพร้อม timeout (สูงสุด 30 วินาที)
+local maxWaitTime = os.clock() + 30
+
+while (not player.Character or not player.Character:FindFirstChild("HumanoidRootPart")) 
+    and os.clock() < maxWaitTime do
+    task.wait(0.5)
+end
+
+-- ✅ ตรวจสอบว่าโหลดสำเร็จไหม
+if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then
+    warn("❌ ตัวละครโหลดไม่เสร็จใน 30 วินาที - ข้ามการตั้งค่า")
+    -- ที่นี่อาจเพิ่ม return เพื่อหยุด script หรือทำอย่างอื่น
+else
+    -- ✅ ตัวละครพร้อมแล้ว ทำการ Config ต่อ
+    task.wait(3)
     
+    pcall(function()
+        if Window and Window.ConfigManager then
+            MyConfig = Window.ConfigManager:Config("DestinyConfig")
+            if typeof(MyConfig) == "table" and typeof(MyConfig.Load) == "function" then
+                MyConfig:Load()
+            end
+        end
+    end)
+end
     -- เพิ่มเวลารอเพิ่มเติมเผื่อปิงหรือโหลดส่วนประกอบอื่น ๆ ของตัวละครยังไม่เสร็จ
     task.wait(3)
     
@@ -893,9 +1026,19 @@ local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 
-local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
-local CommF = Remotes and Remotes:FindFirstChild("CommF_")
-local commE = Remotes and Remotes:FindFirstChild("CommE")
+local Remotes = ReplicatedStorage:WaitForChild("Remotes", 10)
+
+if not Remotes then
+    warn("❌ ไม่พบ ReplicatedStorage.Remotes - Script หยุด")
+    return
+end
+
+local CommF = Remotes:WaitForChild("CommF_", 10)
+local commE = Remotes:WaitForChild("CommE", 10)
+
+if not CommF or not commE then
+    warn("❌ ไม่พบ CommF_ หรือ CommE - คุณสมบัติบางอย่างอาจไม่ทำงาน")
+end
 
 -- ==================== 1. ระบบแดช วิ่งเร็ว กระโดดสูง ====================
 local JumpEnabled = false
@@ -1901,6 +2044,7 @@ do
 end
 
 
+
 --วาปหาผู้เล่น (Improved Version)
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
@@ -2531,20 +2675,46 @@ CombatTab:Dropdown({
     end,
 })
 
+
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
-local netModule = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-local registerHit = netModule:WaitForChild("RE/RegisterHit")
-local registerAttack = netModule:WaitForChild("RE/RegisterAttack")
+-- ✅ เพิ่ม timeout สำหรับทั้ง 3 บรรทัด
+local modules = ReplicatedStorage:WaitForChild("Modules", 10)
+if not modules then
+    warn("❌ ไม่พบ ReplicatedStorage.Modules - Fast Attack ปิด")
+    return
+end
+
+local netModule = modules:WaitForChild("Net", 10)
+if not netModule then
+    warn("❌ ไม่พบ Modules.Net - Fast Attack ปิด")
+    return
+end
+
+local registerHit = netModule:WaitForChild("RE/RegisterHit", 10)
+local registerAttack = netModule:WaitForChild("RE/RegisterAttack", 10)
+
+if not registerHit or not registerAttack then
+    warn("⚠️ ไม่พบ registerHit หรือ registerAttack - Fast Attack อาจไม่ทำงาน")
+    -- ถ้าไม่มี ให้ตั้งค่าเป็น nil เพื่อข้ามการใช้ในภายหลัง
+    registerHit = nil
+    registerAttack = nil
+end
 
 local fastAttackConnection = nil
 local lastAttackTime = 0
 _G.AttackSpeed = 0.1
 
 local function SetFastAttack(state)
+    -- ✅ ตรวจสอบว่า registerHit มีอยู่ก่อนใช้
+    if not registerHit or not registerAttack then
+        warn("⚠️ Remotes ยังไม่พร้อม - ข้าม Fast Attack")
+        return
+    end
+    
     _G.FastAttackRunning = state
     
     if not state then
@@ -2567,7 +2737,7 @@ local function SetFastAttack(state)
             local rootPart = char.HumanoidRootPart
             
             local function attackTarget(targetRoot)
-                if targetRoot then
+                if targetRoot and registerHit and registerAttack then
                     registerHit:FireServer(targetRoot, {}, "211ee8ef")
                     registerAttack:FireServer(0.4000000059604645, 1)
                     lastAttackTime = currentTime
