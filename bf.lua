@@ -1681,29 +1681,42 @@ end
 
 RefreshSafeZones()
 
-local distanceTimer=0
+local distanceTimer = 0
+local DISTANCE_INTERVAL = 0.5
 
-GlobalConns[#GlobalConns+1]=RunService.Heartbeat:Connect(function(dt)
-	distanceTimer=distanceTimer+dt
+GlobalConns[#GlobalConns+1] = RunService.Heartbeat:Connect(function(dt)
+    distanceTimer = distanceTimer + dt
 
-	if distanceTimer<DISTANCE_INTERVAL then
-		return
-	end
+    if distanceTimer < DISTANCE_INTERVAL then
+        return
+    end
 
-	distanceTimer=0
+    distanceTimer = 0
 
-	local character=LocalPlayer.Character
-	MyRoot=character and character:FindFirstChild("HumanoidRootPart")
+    local character = LocalPlayer.Character
+    MyRoot = character and character:FindFirstChild("HumanoidRootPart")
 
-	if not MyRoot then
-		return
-	end
+    if not MyRoot then
+        return
+    end
 
-	for player,entry in pairs(Registry) do
-		if player.Parent then
-			Update(player,entry,true)
-		end
-	end
+    -- build snapshot only once
+    local toUpdate = {}
+    for player, entry in pairs(Registry) do
+        if player and player.Parent then
+            table.insert(toUpdate, { player, entry })
+        end
+    end
+
+    if #toUpdate == 0 then
+        return
+    end
+
+    for i = 1, #toUpdate do
+        local player = toUpdate[i][1]
+        local entry = toUpdate[i][2]
+        Update(player, entry, true)
+    end
 end)
 
 ENV.__ESPCleanup=function()
